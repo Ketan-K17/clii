@@ -49,9 +49,13 @@ dependencies = [
 [project.scripts]
 clii = "clii.main:main"
 
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["clii*"]
+
 [tool.setuptools.package-data]
 clii = ["type_command.sh"]
 
 [build-system]
 requires = ["setuptools>=68"]
-build-backend = "setuptools.backends.legacy:build"
+build-backend = "setuptools.build_meta"
