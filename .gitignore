@@ -1,2 +1,10 @@
-__pycache__
 .env
+clii_venv/
+__pycache__/
+*.pyc
+*.pyo
+.DS_Store
+dist/
+*.egg-info/
+PLAN.md
+tasks/
