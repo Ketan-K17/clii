@@ -1,4 +1,4 @@
-from chat_model import llm
+from clii.chat_model import llm
 
 from pydantic import BaseModel, Field, model_validator
 from typing import Optional
@@ -19,7 +19,5 @@ class Reply(BaseModel):
 structured_llm = llm.with_structured_output(Reply, method="function_calling")
 
 if __name__ == "__main__":
-    # Invoke the augmented LLM
     output = structured_llm.invoke("look for the keyword 'sanity' in my command history")
-
     print(output)
