@@ -1,6 +1,13 @@
 import argparse
 import os
 import sys
+import warnings
+
+warnings.filterwarnings(
+    "ignore",
+    message="Core Pydantic V1 functionality isn't compatible",
+    category=UserWarning,
+)
 
 CONFIG_PATH = os.path.expanduser("~/.config/clii/.env")
 
