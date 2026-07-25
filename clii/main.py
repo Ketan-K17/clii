@@ -91,6 +91,14 @@ def main():
         configure()
         return
 
+    # `clii shell-init [zsh]` prints the shell function that lets clii drop
+    # commands straight into the line editor buffer. Needs no config.
+    if len(sys.argv) > 1 and sys.argv[1] == "shell-init":
+        from clii.tools import shell_init
+
+        shell_init(sys.argv[2] if len(sys.argv) > 2 else "zsh")
+        return
+
     args = parser.parse_args()
 
     _check_config()

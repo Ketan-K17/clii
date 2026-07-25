@@ -1,6 +1,13 @@
 import argparse
 import os
 import sys
+import warnings
+
+warnings.filterwarnings(
+    "ignore",
+    message="Core Pydantic V1 functionality isn't compatible",
+    category=UserWarning,
+)
 
 CONFIG_PATH = os.path.expanduser("~/.config/clii/.env")
 
@@ -82,6 +89,14 @@ def main():
     # Handle `clii configure` as a positional
     if len(sys.argv) > 1 and sys.argv[1] == "configure":
         configure()
+        return
+
+    # `clii shell-init [zsh]` prints the shell function that lets clii drop
+    # commands straight into the line editor buffer. Needs no config.
+    if len(sys.argv) > 1 and sys.argv[1] == "shell-init":
+        from clii.tools import shell_init
+
+        shell_init(sys.argv[2] if len(sys.argv) > 2 else "zsh")
         return
 
     args = parser.parse_args()
