@@ -19,6 +19,15 @@
 
 ### 2. Install
 
+**Option A: Homebrew (recommended)**
+
+```bash
+brew tap Ketan-K17/clii
+brew install clii
+```
+
+**Option B: From source**
+
 Clone the repo and install it into a virtual environment:
 
 ```bash
