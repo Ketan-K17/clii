@@ -10,6 +10,10 @@ class Reply(BaseModel):
 
     @model_validator(mode='after')
     def exactly_one(self) -> 'Reply':
+        if not self.command:
+            self.command = None
+        if not self.answer:
+            self.answer = None
         if (self.command is None) == (self.answer is None):
             raise ValueError("Exactly one of 'command' or 'answer' must be set, not both or neither.")
         return self

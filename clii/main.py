@@ -11,7 +11,7 @@ warnings.filterwarnings(
 
 CONFIG_PATH = os.path.expanduser("~/.config/clii/.env")
 
-CONFIG_KEYS = [
+AZURE_CONFIG_KEYS = [
     ("AZURE_OPENAI_CHAT_ENDPOINT", "Azure OpenAI Endpoint"),
     ("AZURE_OPENAI_CHAT_KEY", "Azure OpenAI Key"),
     ("AZURE_OPENAI_CHAT_DEPLOYMENT_NAME", "Deployment Name"),
@@ -20,12 +20,31 @@ CONFIG_KEYS = [
     ("LLM_TEMPERATURE", "Temperature (e.g. 0)"),
 ]
 
+OLLAMA_CONFIG_KEYS = [
+    ("OLLAMA_MODEL", "Ollama Model (e.g. llama3.2)"),
+    ("OLLAMA_BASE_URL", "Ollama Base URL (e.g. http://localhost:11434)"),
+    ("LLM_TEMPERATURE", "Temperature (e.g. 0)"),
+]
+
+
+PROVIDERS = [
+    ("azure", "AzureChatOpenai", AZURE_CONFIG_KEYS),
+    ("ollama", "Ollama", OLLAMA_CONFIG_KEYS),
+]
+
 
 def configure():
+    from clii.tools import select_menu
+
     os.makedirs(os.path.dirname(CONFIG_PATH), exist_ok=True)
+    choice = select_menu(
+        "Please select your model provider",
+        [label for _, label, _ in PROVIDERS],
+    )
+    provider, _, config_keys = PROVIDERS[choice]
     print("Configuring clii — credentials will be saved to", CONFIG_PATH)
-    lines = []
-    for key, label in CONFIG_KEYS:
+    lines = [f"LLM_PROVIDER={provider}"]
+    for key, label in config_keys:
         value = input(f"{label}: ").strip()
         lines.append(f"{key}={value}")
     with open(CONFIG_PATH, "w") as f:

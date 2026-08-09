@@ -2,6 +2,8 @@ import time
 import subprocess
 import os
 import sys
+import termios
+import tty
 
 SHELL_INIT_ZSH = r'''clii() {
     local _clii_cmd_file
@@ -27,7 +29,7 @@ SHELL_INIT_ZSH = r'''clii() {
 # Purely cosmetic. If the hook cannot be installed the function above falls
 # back to `print -z` and the command simply appears all at once.
 : ${CLII_TYPE_CHUNK:=3}     # characters revealed per step
-: ${CLII_TYPE_DELAY:=10}     # pause per step, in hundredths of a second
+: ${CLII_TYPE_DELAY:=3}     # pause per step, in hundredths of a second
 
 zmodload zsh/zselect 2>/dev/null
 
@@ -97,6 +99,71 @@ def type_command(text: str):
         'for reliable, native command insertion.',
         file=sys.stderr,
     )
+
+
+def select_menu(question: str, options: list[str]) -> int:
+    """Prompt `question` with a numbered `options` list, navigable with arrow
+    keys (or j/k), confirmed with Enter. Returns the chosen index.
+
+    Falls back to plain numbered input when stdin isn't a real terminal
+    (e.g. piped input), since raw mode requires a tty.
+    """
+    if not sys.stdin.isatty():
+        print(question)
+        for i, opt in enumerate(options, 1):
+            print(f"{i}. {opt}")
+        while True:
+            choice = input(f"Enter choice [1-{len(options)}]: ").strip()
+            if choice.isdigit() and 1 <= int(choice) <= len(options):
+                return int(choice) - 1
+
+    selected = 0
+
+    def render(first: bool = False):
+        if not first:
+            sys.stdout.write(f"\x1b[{len(options)}A")
+        for i, opt in enumerate(options):
+            marker = ">" if i == selected else " "
+            line = f"{marker} {i + 1}. {opt}"
+            sys.stdout.write("\x1b[2K\r" + line + "\n")
+        sys.stdout.flush()
+
+    fd = sys.stdin.fileno()
+    old_settings = termios.tcgetattr(fd)
+    try:
+        # Raw mode must be entered before any output is written — writing to
+        # the terminal first leaves this pty's echo state corrupted, causing
+        # later keystrokes to be echoed raw and never reach read().
+        tty.setcbreak(fd)
+        termios.tcflush(fd, termios.TCIFLUSH)
+        print(question)
+        render(first=True)
+        while True:
+            ch = sys.stdin.read(1)
+            if ch == "\x1b":
+                ch2 = sys.stdin.read(1)
+                if ch2 == "[":
+                    ch3 = sys.stdin.read(1)
+                    if ch3 == "A":  # up
+                        selected = (selected - 1) % len(options)
+                        render()
+                    elif ch3 == "B":  # down
+                        selected = (selected + 1) % len(options)
+                        render()
+            elif ch in ("k", "K"):
+                selected = (selected - 1) % len(options)
+                render()
+            elif ch in ("j", "J"):
+                selected = (selected + 1) % len(options)
+                render()
+            elif ch in ("\r", "\n"):
+                break
+            elif ch == "\x03":  # Ctrl-C
+                raise KeyboardInterrupt
+    finally:
+        termios.tcsetattr(fd, termios.TCSADRAIN, old_settings)
+
+    return selected
 
 
 def shell_init(shell: str = "zsh"):
