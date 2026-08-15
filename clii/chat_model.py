@@ -14,6 +14,14 @@ if PROVIDER == "ollama":
         base_url=_config("OLLAMA_BASE_URL", default="http://localhost:11434"),
         temperature=float(_config("LLM_TEMPERATURE", default=0.0)),
     )
+elif PROVIDER == "openai":
+    from langchain_openai import ChatOpenAI
+
+    llm = ChatOpenAI(
+        api_key=_config("OPENAI_API_KEY"),
+        model=_config("OPENAI_MODEL", default="gpt-4o"),
+        temperature=float(_config("LLM_TEMPERATURE", default=0.0)),
+    )
 else:
     from langchain_openai import AzureChatOpenAI
 
