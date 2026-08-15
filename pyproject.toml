@@ -30,6 +30,7 @@ dependencies = [
     "packaging==26.0",
     "pydantic==2.12.5",
     "pydantic_core==2.41.5",
+    "prompt_toolkit==3.0.53",
     "PyYAML==6.0.3",
     "python-decouple==3.8",
     "regex==2026.3.32",

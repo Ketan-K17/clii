@@ -101,6 +101,32 @@ def type_command(text: str):
     )
 
 
+def multiline_input(prompt: str = "> ") -> str:
+    """Read a query, submitting on Enter, with Alt+Enter for a manual newline.
+
+    Pasted text (bracketed paste) is inserted verbatim regardless of how many
+    embedded newlines it contains — prompt_toolkit captures a paste as one
+    atomic insert rather than routing it through the Enter keybinding, so a
+    multiline blurb dropped in from the clipboard never triggers a premature
+    submit line-by-line.
+    """
+    from prompt_toolkit import PromptSession
+    from prompt_toolkit.key_binding import KeyBindings
+
+    kb = KeyBindings()
+
+    @kb.add("c-m")
+    def _submit(event):
+        event.current_buffer.validate_and_handle()
+
+    @kb.add("escape", "enter")
+    def _newline(event):
+        event.current_buffer.insert_text("\n")
+
+    session = PromptSession(multiline=True, key_bindings=kb)
+    return session.prompt(prompt)
+
+
 def select_menu(question: str, options: list[str]) -> int:
     """Prompt `question` with a numbered `options` list, navigable with arrow
     keys (or j/k), confirmed with Enter. Returns the chosen index.

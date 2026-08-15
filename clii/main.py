@@ -65,11 +65,11 @@ def _build_chain():
     from clii.tools import type_print, type_command
 
     class State(TypedDict):
-        user_query: str
+        messages: list
         reply: Reply
 
     def llm_node(state: State):
-        output = structured_llm.invoke(state["user_query"])
+        output = structured_llm.invoke(state["messages"])
         return {"reply": output}
 
     def terminal_command_node(state: State):
@@ -97,25 +97,31 @@ def _build_chain():
     return workflow.compile()
 
 
+def _shell_init_command():
+    from clii.tools import shell_init
+
+    shell_init(sys.argv[2] if len(sys.argv) > 2 else "zsh")
+
+
+# Reserved keywords matched against sys.argv[1] before argparse ever runs.
+# These need config-free, config-file-free dispatch, and none of them can be
+# expressed as ordinary argparse positionals alongside a bare free-text query
+# (see main.py history/discussion for why).
+RESERVED_COMMANDS = {
+    "configure": configure,
+    "shell-init": _shell_init_command,
+}
+
+
 def main():
     parser = argparse.ArgumentParser(
         prog="clii",
         description="Natural language terminal assistant for macOS",
     )
-    parser.add_argument("query", nargs="*", help="Natural language query")
-    parser.add_argument("configure", nargs="?", help=argparse.SUPPRESS)
+    parser.add_argument("query", nargs="?", help="Natural language query (must be a single quoted string)")
 
-    # Handle `clii configure` as a positional
-    if len(sys.argv) > 1 and sys.argv[1] == "configure":
-        configure()
-        return
-
-    # `clii shell-init [zsh]` prints the shell function that lets clii drop
-    # commands straight into the line editor buffer. Needs no config.
-    if len(sys.argv) > 1 and sys.argv[1] == "shell-init":
-        from clii.tools import shell_init
-
-        shell_init(sys.argv[2] if len(sys.argv) > 2 else "zsh")
+    if len(sys.argv) > 1 and sys.argv[1] in RESERVED_COMMANDS:
+        RESERVED_COMMANDS[sys.argv[1]]()
         return
 
     args = parser.parse_args()
@@ -124,17 +130,37 @@ def main():
     chain = _build_chain()
 
     if args.query:
-        user_query = " ".join(args.query)
-        chain.invoke({"user_query": user_query})
+        chain.invoke({"messages": [{"role": "user", "content": args.query}]})
     else:
+        from langchain_core.messages import HumanMessage, AIMessage
+        from clii.tools import multiline_input
+
         # Interactive REPL
+        print(r"""
+ ██████╗██╗     ██╗██╗
+██╔════╝██║     ██║██║
+██║     ██║     ██║██║
+██║     ██║     ██║██║
+╚██████╗███████╗██║██║
+ ╚═════╝╚══════╝╚═╝╚═╝
+""")
         print("clii interactive mode — type your query or Ctrl-C to exit")
+        print("(Enter submits, Alt+Enter inserts a newline, paste is safe)")
+        history = []
         try:
             while True:
-                user_query = input("> ").strip()
+                user_query = multiline_input("> ").strip()
                 if not user_query:
                     continue
-                chain.invoke({"user_query": user_query})
+                history.append(HumanMessage(content=user_query))
+                result = chain.invoke({"messages": history})
+                reply = result["reply"]
+                if reply.command is not None:
+                    # terminal_command_node already wrote the command to the
+                    # shell's buffer file; exit now so the shell wrapper picks
+                    # it up immediately, same as one-shot `clii "..."` usage.
+                    return
+                history.append(AIMessage(content=reply.answer))
         except KeyboardInterrupt:
             print()
 
