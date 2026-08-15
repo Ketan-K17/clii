@@ -51,15 +51,28 @@ def configure():
     provider, _, config_keys = PROVIDERS[choice]
     print("Configuring clii — credentials will be saved to", CONFIG_PATH)
 
-    new_values = {"LLM_PROVIDER": provider}
-    for key, label in config_keys:
-        new_values[key] = input(f"{label}: ").strip()
-
     if os.path.exists(CONFIG_PATH):
         with open(CONFIG_PATH) as f:
             existing_lines = f.read().splitlines()
     else:
         existing_lines = []
+
+    existing_config = dict(
+        line.split("=", 1) for line in existing_lines if "=" in line
+    )
+    has_existing_config = all(existing_config.get(key) for key, _ in config_keys)
+
+    new_values = {"LLM_PROVIDER": provider}
+    if has_existing_config:
+        use_existing = select_menu("Use existing config?", ["Yes", "No"]) == 0
+    else:
+        use_existing = False
+
+    if use_existing:
+        print(f"Switching provider to {provider}, keeping existing config.")
+    else:
+        for key, label in config_keys:
+            new_values[key] = input(f"{label}: ").strip()
 
     lines = []
     for line in existing_lines:
