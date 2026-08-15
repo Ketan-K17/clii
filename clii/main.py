@@ -26,10 +26,17 @@ OLLAMA_CONFIG_KEYS = [
     ("LLM_TEMPERATURE", "Temperature (e.g. 0)"),
 ]
 
+OPENAI_CONFIG_KEYS = [
+    ("OPENAI_API_KEY", "OpenAI API Key"),
+    ("OPENAI_MODEL", "Model Name (e.g. gpt-4o)"),
+    ("LLM_TEMPERATURE", "Temperature (e.g. 0)"),
+]
+
 
 PROVIDERS = [
     ("azure", "AzureChatOpenai", AZURE_CONFIG_KEYS),
     ("ollama", "Ollama", OLLAMA_CONFIG_KEYS),
+    ("openai", "OpenAI", OPENAI_CONFIG_KEYS),
 ]
 
 
@@ -43,10 +50,32 @@ def configure():
     )
     provider, _, config_keys = PROVIDERS[choice]
     print("Configuring clii — credentials will be saved to", CONFIG_PATH)
-    lines = [f"LLM_PROVIDER={provider}"]
+
+    new_values = {"LLM_PROVIDER": provider}
     for key, label in config_keys:
-        value = input(f"{label}: ").strip()
+        new_values[key] = input(f"{label}: ").strip()
+
+    if os.path.exists(CONFIG_PATH):
+        with open(CONFIG_PATH) as f:
+            existing_lines = f.read().splitlines()
+    else:
+        existing_lines = []
+
+    lines = []
+    for line in existing_lines:
+        key = line.split("=", 1)[0] if "=" in line else None
+        if key in new_values:
+            lines.append(f"{key}={new_values.pop(key)}")
+        else:
+            lines.append(line)
+
+    # LLM_PROVIDER should always be present near the top for new configs.
+    if "LLM_PROVIDER" in new_values:
+        lines.insert(0, f"LLM_PROVIDER={new_values.pop('LLM_PROVIDER')}")
+
+    for key, value in new_values.items():
         lines.append(f"{key}={value}")
+
     with open(CONFIG_PATH, "w") as f:
         f.write("\n".join(lines) + "\n")
     print(f"Config saved to {CONFIG_PATH}")
