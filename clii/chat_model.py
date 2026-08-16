@@ -58,7 +58,7 @@ if PROVIDER == "ollama":
     from langchain_ollama import ChatOllama
 
     _model = _config("OLLAMA_MODEL", default="llama3.2")
-    _base_url = _config("OLLAMA_BASE_URL", default="http://localhost:11434")
+    _base_url = _config("OLLAMA_BASE_URL", default="http://localhost:11434").strip() or "http://localhost:11434"
 
     _headers = _ollama_headers()
 

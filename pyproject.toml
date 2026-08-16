@@ -1,6 +1,6 @@
 [project]
 name = "clii"
-version = "0.2.1"
+version = "0.2.2"
 description = "Natural language terminal assistant for macOS"
 requires-python = ">=3.11"
 dependencies = [
