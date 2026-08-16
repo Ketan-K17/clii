@@ -145,6 +145,12 @@ def _shell_init_command():
     shell_init(sys.argv[2] if len(sys.argv) > 2 else "zsh")
 
 
+def _history_command():
+    from clii.tools import edit_history
+
+    edit_history()
+
+
 # Reserved keywords matched against sys.argv[1] before argparse ever runs.
 # These need config-free, config-file-free dispatch, and none of them can be
 # expressed as ordinary argparse positionals alongside a bare free-text query
@@ -152,6 +158,7 @@ def _shell_init_command():
 RESERVED_COMMANDS = {
     "configure": configure,
     "shell-init": _shell_init_command,
+    "history": _history_command,
 }
 
 
@@ -161,6 +168,10 @@ def main():
         description="Natural language terminal assistant for macOS",
     )
     parser.add_argument("query", nargs="?", help="Natural language query (must be a single quoted string)")
+    parser.add_argument(
+        "--new", action="store_true",
+        help="Ignore any resumable session from a previous invocation and start fresh",
+    )
 
     if len(sys.argv) > 1 and sys.argv[1] in RESERVED_COMMANDS:
         RESERVED_COMMANDS[sys.argv[1]]()
@@ -171,10 +182,25 @@ def main():
     _check_config()
     chain = _build_chain()
 
+    from langchain_core.messages import HumanMessage, AIMessage
+    from clii.session import load_session, save_session, clear_session
+
+    if args.new:
+        clear_session()
+
     if args.query:
-        chain.invoke({"messages": [{"role": "user", "content": args.query}]})
+        history = load_session()
+        history.append(HumanMessage(content=args.query))
+        result = chain.invoke({"messages": history})
+        reply = result["reply"]
+        if reply.command is not None:
+            # Remember what we suggested, not just that we replied, so a
+            # follow-up invocation ("no, exclude X") can refer back to it.
+            history.append(AIMessage(content=f"(suggested command: {reply.command})"))
+        else:
+            history.append(AIMessage(content=reply.answer))
+        save_session(history)
     else:
-        from langchain_core.messages import HumanMessage, AIMessage
         from clii.tools import multiline_input
 
         # Interactive REPL
@@ -188,7 +214,7 @@ def main():
 """)
         print("clii interactive mode — type your query or Ctrl-C to exit")
         print("(Enter submits, Alt+Enter inserts a newline, paste is safe)")
-        history = []
+        history = load_session()
         try:
             while True:
                 user_query = multiline_input("> ").strip()
@@ -201,10 +227,13 @@ def main():
                     # terminal_command_node already wrote the command to the
                     # shell's buffer file; exit now so the shell wrapper picks
                     # it up immediately, same as one-shot `clii "..."` usage.
+                    history.append(AIMessage(content=f"(suggested command: {reply.command})"))
+                    save_session(history)
                     return
                 history.append(AIMessage(content=reply.answer))
         except KeyboardInterrupt:
             print()
+            save_session(history)
 
 
 if __name__ == "__main__":

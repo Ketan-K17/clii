@@ -192,6 +192,88 @@ def select_menu(question: str, options: list[str]) -> int:
     return selected
 
 
+HISTORY_HEADER = """\
+# clii session history. Edit turns or delete lines to change what clii
+# remembers, then save and quit. Saving an unchanged file just refreshes
+# the session's expiry.
+#
+# '>' starts a query you sent, '<' starts clii's reply. Unmarked lines that
+# follow are extra lines of that same turn. '#' lines are ignored.
+
+"""
+
+
+def format_history(messages: list) -> str:
+    lines = [HISTORY_HEADER.rstrip("\n")]
+    for message in messages:
+        marker = ">" if message.type == "human" else "<"
+        content_lines = str(message.content).split("\n")
+        lines.append(f"{marker} {content_lines[0]}")
+        lines.extend(content_lines[1:])
+        lines.append("")
+    return "\n".join(lines) + "\n"
+
+
+def parse_history(text: str) -> list:
+    from langchain_core.messages import AIMessage, HumanMessage
+
+    messages = []
+    role, buffer = None, []
+
+    def flush():
+        if role is not None:
+            content = "\n".join(buffer).rstrip("\n")
+            cls = HumanMessage if role == "human" else AIMessage
+            messages.append(cls(content=content))
+
+    for line in text.splitlines():
+        if line.startswith("#"):
+            continue
+        if line.startswith(">"):
+            flush()
+            role, buffer = "human", [line[1:].lstrip(" ")]
+        elif line.startswith("<"):
+            flush()
+            role, buffer = "ai", [line[1:].lstrip(" ")]
+        elif line.strip() == "" and role is None:
+            continue
+        elif role is not None:
+            buffer.append(line)
+    flush()
+    return messages
+
+
+def edit_history() -> None:
+    """Open the saved session history in $EDITOR, then save whatever comes back."""
+    import tempfile
+    from clii.session import load_all_messages, save_session, clear_session
+
+    messages = load_all_messages()
+    text = format_history(messages)
+
+    with tempfile.NamedTemporaryFile(
+        mode="w", suffix=".clii-history", delete=False
+    ) as f:
+        f.write(text)
+        path = f.name
+
+    try:
+        editor = os.environ.get("EDITOR", "nano")
+        subprocess.call([editor, path])
+        with open(path) as f:
+            edited = f.read()
+    finally:
+        os.remove(path)
+
+    new_messages = parse_history(edited)
+    if new_messages:
+        save_session(new_messages)
+        print(f"clii: saved {len(new_messages)} message(s) to history.")
+    else:
+        clear_session()
+        print("clii: history cleared.")
+
+
 def shell_init(shell: str = "zsh"):
     """Print the shell function that enables buffer integration."""
     if shell != "zsh":
