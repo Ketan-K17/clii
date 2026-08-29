@@ -9,6 +9,12 @@
 
 **clii** is a natural language terminal assistant for macOS. Type what you want in plain English, and it either types the equivalent shell command into your terminal for you to review and run, or answers your question directly.
 
+[![Multi-turn conversation](https://img.youtube.com/vi/7A5M_Wfn-ac/0.jpg)](https://www.youtube.com/watch?v=7A5M_Wfn-ac)
+
+[![Asking for a command](https://img.youtube.com/vi/puI8_BG8KUQ/0.jpg)](https://youtu.be/puI8_BG8KUQ)
+
+[![Conversation](https://img.youtube.com/vi/KNlWH7q0Rds/0.jpg)](https://youtu.be/KNlWH7q0Rds)
+
 ## Setup (macOS)
 
 ### 1. Prerequisites
